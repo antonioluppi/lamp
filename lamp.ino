@@ -1,12 +1,5 @@
 #include <CapacitiveSensor.h>
 
-/* 
-Autoria:                  Antonio Carlos Luppi Júnior
-                          Elias Bencz
-         
-Idealização do projeto:   Bárbara Laura Cidral
-*/
-
 struct color_t {
   byte r,g,b;
 };
@@ -33,7 +26,6 @@ color_t strong_blue = {
   .g=142,
   .b=255,
 };
-
 
 color_t light_green = {
   .r=13,
@@ -65,18 +57,26 @@ color_t strong_red = {
   .b=0,
 };
 
+
+enum cs_state_t {
+	low, rising, high, falling
+};
+
 mode_t noite, arousal, rush, relax;
 
 byte targetBrightness = 0;
 byte currentBrightness = 0;
-int touchThreshold_high = 1000;
-int touchThreshold_low = 800;
+long touchThreshold = 200;
+long cs_debounce = 100;	//ms
+long cs_time;
+cs_state_t cs_state = low;
+
 int mode = 0;
 int value = 255;
 int red = 5;
 int green = 3;
 int blue = 6;
-int button_led = 13;
+int cs_led = 13;
 int timestep = 50;
 CapacitiveSensor   cs_4_2 = CapacitiveSensor(4,A0);        // 10 megohm resistor between pins 4 & 2, pin 2 is sensor pin, add wire, foil
 int color_index = 0;
@@ -87,9 +87,6 @@ mode_t* modes[] = {&noite, &arousal, &rush, &relax};
 color_t *last_color = &black;
 color_t *current_color = &black;
 int itr = 0;
-long button_int = 0;
-long lastbutton_int = 0;
-long lastlastbutton_int = 0;
 
 void setup()                    
 {
@@ -116,31 +113,70 @@ void setup()
    pinMode(red, OUTPUT);     
    pinMode(green, OUTPUT);
    pinMode(blue, OUTPUT);
-   pinMode(button_led, OUTPUT);  
+	 pinMode(cs_led, OUTPUT);
 
   last_time = millis();
 }
 
-void loop(){
-  lastlastbutton_int = lastbutton_int;
-  lastbutton_int = button_int;
-  button_int =  cs_4_2.capacitiveSensor(30); 
-  Serial.println(button_int);
-  digitalWrite(button_led, button_int > touchThreshold_high ? HIGH : LOW); // mostra quando o sensor esta sendo ativado
+void loop() {
   
-  if (button_int > touchThreshold_high && lastbutton_int < touchThreshold_low && lastlastbutton_int < touchThreshold_low) {
-    mode = (mode + 1) % 3;  
-        Serial.println("###################################################");
-        Serial.print("The current mode is..."); //Serial monitor to bebug mode increases
-        Serial.println(mode);  //print value of mode to seial monitor
-        Serial.println("###################################################");
+	long current_time = millis();
+	long cs_value =  cs_4_2.capacitiveSensor(30);
+
+	switch(cs_state) {
+		case low:
+			if(cs_value > touchThreshold)
+			{
+				cs_time = current_time;
+				cs_state = rising;
+			}
+			break;
+		case rising:
+			if(cs_value < touchThreshold)
+			{
+				cs_state = low;
+			}else if(current_time - cs_time > cs_debounce) {
+        mode = (mode + 1) % 4;  
         last_color = current_color;
         current_color = modes[mode]->colors[color_index];
         itr = 0;
-        
-  }
+				color_index = 0;
+				Serial.print("The current mode is...");
+				Serial.println(mode);
+				cs_state = high;
+				digitalWrite(cs_led, HIGH);
+			}
+			break;
+		case high:
+			if(cs_value < touchThreshold)
+			{
+				cs_time = current_time;
+				cs_state = falling;
+      }
+			break;
+		case falling:
+			if(cs_value > touchThreshold)
+			{
+				cs_state = high;
+			}else if(current_time - cs_time > cs_debounce) {
+				cs_state = low;
+				digitalWrite(cs_led, LOW);
+			}
+			break;
+	};
     
-  long current_time = millis();
+    if (current_time - last_time > mode_time_hop){
+      last_time = current_time;
+      color_index = (color_index + 1) % modes[mode]->n_colors;
+      
+      last_color = current_color;
+      current_color = modes[mode]->colors[color_index];
+      itr = 0;
+      
+    }
+
+    
+  
   /*if (current_time - last_time > mode_time_hop){
     last_time = current_time;
     color_index = (color_index + 1) % modes[mode]->n_colors;
