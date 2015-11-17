@@ -1,13 +1,12 @@
 #include <CapacitiveSensor.h>
 
-/*
- * CapitiveSense Library Demo Sketch
- * Paul Badger 2008
- * Uses a high value resistor e.g. 10 megohm between send pin and receive pin
- * Resistor effects sensitivity, experiment with values, 50 kilohm - 50 megohm. Larger resistor values yield larger sensor values.
- * Receive pin is the sensor pin - try different amounts of foil/metal on this pin
- * Best results are obtained if sensor foil and wire is covered with an insulator such as paper or plastic sheet
- */
+/* 
+Autoria:                  Antonio Carlos Luppi Júnior
+                          Elias Bencz
+         
+Idealização do projeto:   Bárbara Laura Cidral
+*/
+
 struct color_t {
   byte r,g,b;
 };
@@ -36,7 +35,7 @@ color_t strong_blue = {
 };
 
 
-color_t strong_green = {
+color_t light_green = {
   .r=13,
   .g=255,
   .b=233,
@@ -66,12 +65,12 @@ color_t strong_red = {
   .b=0,
 };
 
-mode_t noite, arousal, relax;
+mode_t noite, arousal, rush, relax;
 
 byte targetBrightness = 0;
 byte currentBrightness = 0;
-int touchThreshold_high = 200;
-int touchThreshold_low = 100;
+int touchThreshold_high = 1000;
+int touchThreshold_low = 800;
 int mode = 0;
 int value = 255;
 int red = 5;
@@ -82,8 +81,8 @@ int timestep = 50;
 CapacitiveSensor   cs_4_2 = CapacitiveSensor(4,A0);        // 10 megohm resistor between pins 4 & 2, pin 2 is sensor pin, add wire, foil
 int color_index = 0;
 long last_time;
-long mode_time_hop = 30000;
-mode_t* modes[] = {&noite, &arousal, &relax};
+long mode_time_hop = 1200000;
+mode_t* modes[] = {&noite, &arousal, &rush, &relax};
 
 color_t *last_color = &black;
 color_t *current_color = &black;
@@ -100,8 +99,11 @@ void setup()
    arousal.n_colors = 4;
    arousal.colors[0] = &light_white;
    arousal.colors[1] = &strong_blue;
-   arousal.colors[2] = &strong_green;
+   arousal.colors[2] = &light_green;
    arousal.colors[3] = &strong_white;
+   
+   rush.n_colors = 1;
+   rush.colors[0] = &strong_white;
    
    relax.n_colors = 4;
    relax.colors[0] = &light_orange;
@@ -128,33 +130,35 @@ void loop(){
   
   if (button_int > touchThreshold_high && lastbutton_int < touchThreshold_low && lastlastbutton_int < touchThreshold_low) {
     mode = (mode + 1) % 3;  
-       /* if (mode == 0) targetBrightness = 0;
-        if (mode == 1) targetBrightness = 255;
-        if (mode == 2) targetBrightness = 128;
-        if (mode == 3) targetBrightness = 64;
-       */
+        Serial.println("###################################################");
         Serial.print("The current mode is..."); //Serial monitor to bebug mode increases
         Serial.println(mode);  //print value of mode to seial monitor
-    }
+        Serial.println("###################################################");
+        last_color = current_color;
+        current_color = modes[mode]->colors[color_index];
+        itr = 0;
+        
+  }
     
-    long current_time = millis();
-    if (current_time - last_time > mode_time_hop){
-      last_time = current_time;
-      color_index = (color_index + 1) % modes[mode]->n_colors;
-      
-      last_color = current_color;
-      current_color = modes[mode]->colors[color_index];
-      itr = 0;
-      
-    }
-    
+  long current_time = millis();
+  /*if (current_time - last_time > mode_time_hop){
+    last_time = current_time;
+    color_index = (color_index + 1) % modes[mode]->n_colors;
+    Serial.println("****************************************************");
+    last_color = current_color;
+    current_color = modes[mode]->colors[color_index];
+    itr = 0;  
+  }
+    */
     color_t color;
     color.r = last_color->r*(255-itr)/255 + current_color->r*itr/255;
     color.g = last_color->g*(255-itr)/255 + current_color->g*itr/255;
     color.b = last_color->b*(255-itr)/255 + current_color->b*itr/255;
-    if (itr <= 255){
+    
+    if (itr < 255){
       itr++;
     }
+    
     
     Serial.print("current color:\t");
     Serial.print(current_color->r);
@@ -177,7 +181,13 @@ void loop(){
     Serial.print(color.b);
     Serial.print("\n");
     
-
+    if (itr == 255){
+      color_index = (color_index + 1) % modes[mode]->n_colors;
+      Serial.println("****************************************************");
+      last_color = current_color;
+      current_color = modes[mode]->colors[color_index];
+      itr = 0;
+    }
     
     
     delay(10);                             // arbitrary delay to limit data to serial port 
