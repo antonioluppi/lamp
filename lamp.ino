@@ -64,7 +64,9 @@ enum cs_state_t {
 
 mode_t noite, arousal, rush, relax;
 
-long touchThreshold = 5000;
+float touchThreshold = 0.1f;
+float cs_average = 200;
+float k_filter = 0.005;
 long cs_debounce = 100;	//ms
 long cs_time;
 long cs_reset_time = 20000;
@@ -76,7 +78,7 @@ int green = 5;
 int blue = 6;
 int cs_led = 13;
 int timestep = 50;
-CapacitiveSensor   cs_4_2 = CapacitiveSensor(4,A0);        // 10 megohm resistor between pins 4 & 2, pin 2 is sensor pin, add wire, foil
+CapacitiveSensor cs_4_2 = CapacitiveSensor(4,A0);        // 10 megohm resistor between pins 4 & 2, pin 2 is sensor pin, add wire, foil
 int color_index = 0;
 mode_t* modes[] = {&noite, &arousal, &rush, &relax};
 
@@ -104,7 +106,7 @@ void setup()
 	relax.colors[2] = &strong_red;
 	relax.colors[3] = &black;
 
-//	cs_4_2.set_CS_AutocaL_Millis(20000);     // turn off autocalibrate on channel 1 - just as an example
+	cs_4_2.set_CS_AutocaL_Millis(0xFFFFFFFF);     // turn off autocalibrate on channel 1 - just as an example
 	Serial.begin(9600);
 	pinMode(red, OUTPUT);     
 	pinMode(green, OUTPUT);
@@ -117,19 +119,23 @@ void loop() {
 
 	long current_time = millis();
 	long cs_value =  cs_4_2.capacitiveSensor(200);
+        cs_average = cs_value * k_filter + cs_average * (1-k_filter);
 	boolean on_button_press= false;
 	Serial.print(cs_value);
 	Serial.print("\t");
+	Serial.print(cs_average);
+	Serial.print("\t");
+        boolean p = (cs_value - cs_average) / cs_average > touchThreshold;
 	switch(cs_state) {
 		case low:
-			if(cs_value > touchThreshold)
+			if(p)
 			{
 				cs_time = current_time;
 				cs_state = rising;
 			}
 			break;
 		case rising:
-			if(cs_value < touchThreshold)
+			if(!p)
 			{
 				cs_state = low;
 			}else if(current_time - cs_time > cs_debounce) {
@@ -140,14 +146,14 @@ void loop() {
 			}
 			break;
 		case high:
-			if(cs_value < touchThreshold)
+			if(!p)
 			{
 				cs_time = current_time;
 				cs_state = falling;
 			}
 			break;
 		case falling:
-			if(cs_value > touchThreshold)
+			if(p)
 			{
 				cs_state = high;
 			}else if(current_time - cs_time > cs_debounce) {
@@ -157,11 +163,6 @@ void loop() {
 			}
 			break;
 	};
-
-        if((cs_state == high || cs_state == low) && (current_time - cs_time > cs_reset_time)) {
-            cs_4_2.reset_CS_AutoCal();
-            cs_time = current_time;
-        }
 
 	if (on_button_press){
 
