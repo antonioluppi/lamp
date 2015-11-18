@@ -64,15 +64,12 @@ enum cs_state_t {
 
 mode_t noite, arousal, rush, relax;
 
-byte targetBrightness = 0;
-byte currentBrightness = 0;
 long touchThreshold = 200;
 long cs_debounce = 100;	//ms
 long cs_time;
 cs_state_t cs_state = low;
 
 int mode = 0;
-int value = 255;
 int red = 5;
 int green = 3;
 int blue = 6;
@@ -80,8 +77,6 @@ int cs_led = 13;
 int timestep = 50;
 CapacitiveSensor   cs_4_2 = CapacitiveSensor(4,A0);        // 10 megohm resistor between pins 4 & 2, pin 2 is sensor pin, add wire, foil
 int color_index = 0;
-long last_time;
-long mode_time_hop = 1200000;
 mode_t* modes[] = {&noite, &arousal, &rush, &relax};
 
 color_t *last_color = &black;
@@ -115,14 +110,15 @@ void setup()
    pinMode(blue, OUTPUT);
 	 pinMode(cs_led, OUTPUT);
 
-  last_time = millis();
 }
 
 void loop() {
   
 	long current_time = millis();
 	long cs_value =  cs_4_2.capacitiveSensor(30);
-
+        boolean on_button_press= false;
+        Serial.print(cs_value);
+        Serial.print("\t");
 	switch(cs_state) {
 		case low:
 			if(cs_value > touchThreshold)
@@ -136,13 +132,7 @@ void loop() {
 			{
 				cs_state = low;
 			}else if(current_time - cs_time > cs_debounce) {
-        mode = (mode + 1) % 4;  
-        last_color = current_color;
-        current_color = modes[mode]->colors[color_index];
-        itr = 0;
-				color_index = 0;
-				Serial.print("The current mode is...");
-				Serial.println(mode);
+				on_button_press = true;
 				cs_state = high;
 				digitalWrite(cs_led, HIGH);
 			}
@@ -165,36 +155,22 @@ void loop() {
 			break;
 	};
     
-    if (current_time - last_time > mode_time_hop){
-      last_time = current_time;
-      color_index = (color_index + 1) % modes[mode]->n_colors;
+	if (on_button_press){
       
+  		mode = (mode + 1) % 4;  
+                color_index = 0;
       last_color = current_color;
       current_color = modes[mode]->colors[color_index];
       itr = 0;
       
-    }
-
-    
+		Serial.print("The current mode is...");
+		Serial.println(mode);
   
-  /*if (current_time - last_time > mode_time_hop){
-    last_time = current_time;
-    color_index = (color_index + 1) % modes[mode]->n_colors;
-    Serial.println("****************************************************");
-    last_color = current_color;
-    current_color = modes[mode]->colors[color_index];
-    itr = 0;  
   }
-    */
     color_t color;
     color.r = last_color->r*(255-itr)/255 + current_color->r*itr/255;
     color.g = last_color->g*(255-itr)/255 + current_color->g*itr/255;
     color.b = last_color->b*(255-itr)/255 + current_color->b*itr/255;
-    
-    if (itr < 255){
-      itr++;
-    }
-    
     
     Serial.print("current color:\t");
     Serial.print(current_color->r);
@@ -208,7 +184,6 @@ void loop() {
     analogWrite(green, color.g);
     analogWrite(blue, color.b);
     
-    
     Serial.print("color:\t");
     Serial.print(color.r);
     Serial.print("\t");
@@ -217,14 +192,15 @@ void loop() {
     Serial.print(color.b);
     Serial.print("\n");
     
-    if (itr == 255){
+	if (itr < 255){
+		itr++;
+	}else if (itr == 255){
       color_index = (color_index + 1) % modes[mode]->n_colors;
       Serial.println("****************************************************");
       last_color = current_color;
       current_color = modes[mode]->colors[color_index];
       itr = 0;
     }
-    
     
     delay(10);                             // arbitrary delay to limit data to serial port 
 }
