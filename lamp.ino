@@ -64,9 +64,9 @@ enum cs_state_t {
 
 mode_t noite, arousal, rush, relax;
 
-float touchThreshold = 0.1f;
-float cs_average = 200;
-float k_filter = 0.005;
+float touchThreshold = 2000;
+float cs_average = 20000;
+float k_filter = 0.01;
 long cs_debounce = 100;	//ms
 long cs_time;
 long cs_reset_time = 20000;
@@ -125,7 +125,7 @@ void loop() {
 	Serial.print("\t");
 	Serial.print(cs_average);
 	Serial.print("\t");
-        boolean p = (cs_value - cs_average) / cs_average > touchThreshold;
+        boolean p = (cs_value - cs_average) > touchThreshold;
 	switch(cs_state) {
 		case low:
 			if(p)
