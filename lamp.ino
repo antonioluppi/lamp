@@ -70,8 +70,8 @@ long cs_time;
 cs_state_t cs_state = low;
 
 int mode = 0;
-int red = 5;
-int green = 3;
+int red = 3;
+int green = 5;
 int blue = 6;
 int cs_led = 13;
 int timestep = 50;
