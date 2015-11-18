@@ -64,9 +64,10 @@ enum cs_state_t {
 
 mode_t noite, arousal, rush, relax;
 
-long touchThreshold = 200;
+long touchThreshold = 5000;
 long cs_debounce = 100;	//ms
 long cs_time;
+long cs_reset_time = 20000;
 cs_state_t cs_state = low;
 
 int mode = 0;
@@ -103,7 +104,7 @@ void setup()
 	relax.colors[2] = &strong_red;
 	relax.colors[3] = &black;
 
-	cs_4_2.set_CS_AutocaL_Millis(0xFFFFFFFF);     // turn off autocalibrate on channel 1 - just as an example
+//	cs_4_2.set_CS_AutocaL_Millis(20000);     // turn off autocalibrate on channel 1 - just as an example
 	Serial.begin(9600);
 	pinMode(red, OUTPUT);     
 	pinMode(green, OUTPUT);
@@ -115,7 +116,7 @@ void setup()
 void loop() {
 
 	long current_time = millis();
-	long cs_value =  cs_4_2.capacitiveSensor(30);
+	long cs_value =  cs_4_2.capacitiveSensor(200);
 	boolean on_button_press= false;
 	Serial.print(cs_value);
 	Serial.print("\t");
@@ -134,6 +135,7 @@ void loop() {
 			}else if(current_time - cs_time > cs_debounce) {
 				on_button_press = true;
 				cs_state = high;
+                                cs_time = current_time;
 				digitalWrite(cs_led, HIGH);
 			}
 			break;
@@ -150,10 +152,16 @@ void loop() {
 				cs_state = high;
 			}else if(current_time - cs_time > cs_debounce) {
 				cs_state = low;
+                                cs_time = current_time;
 				digitalWrite(cs_led, LOW);
 			}
 			break;
 	};
+
+        if((cs_state == high || cs_state == low) && (current_time - cs_time > cs_reset_time)) {
+            cs_4_2.reset_CS_AutoCal();
+            cs_time = current_time;
+        }
 
 	if (on_button_press){
 
